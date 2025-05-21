@@ -181,6 +181,116 @@ class RetellController {
       });
     }
   }
+
+  // Create a new agent
+  static async createAgent(req, res) {
+    try {
+      const response = await axios.post(
+        'https://api.retellai.com/create-agent',
+        req.body,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.status(201).json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('Create agent error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // Update an existing agent
+  static async updateAgent(req, res) {
+    try {
+      const { agentId } = req.params;
+
+      const response = await axios.patch(
+        `https://api.retellai.com/update-agent/${agentId}`,
+        req.body,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('Update agent error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // Delete an agent
+  static async deleteAgent(req, res) {
+    try {
+      const { agentId } = req.params;
+
+      const response = await axios.delete(
+        `https://api.retellai.com/delete-agent/${agentId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('Delete agent error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // List all agents
+  static async listAgents(req, res) {
+    try {
+      const response = await axios.get(
+        'https://api.retellai.com/list-agents',
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('List agents error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
 }
 
 module.exports = RetellController; 

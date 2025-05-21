@@ -16,6 +16,11 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Ana sayfa route'u
+app.get('/', (req, res) => {
+  res.json({ message: 'Call Center API is running' });
+});
+
 // Routes
 app.use('/api', routes);
 
