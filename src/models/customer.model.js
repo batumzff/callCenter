@@ -27,6 +27,26 @@ const customerSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'processing', 'completed', 'failed'],
     default: 'pending'
+  },
+  retellData: {
+    callId: String,
+    callStatus: String,
+    callDuration: Number,
+    callStartTime: Date,
+    callEndTime: Date,
+    transcript: String,
+    summary: String,
+    sentiment: String,
+    keyPoints: [String],
+    nextSteps: [String],
+    customFields: {
+      type: Map,
+      of: mongoose.Schema.Types.Mixed
+    }
+  },
+  projectId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Project'
   }
 }, {
   timestamps: true
