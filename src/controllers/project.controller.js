@@ -5,8 +5,8 @@ class ProjectController {
     // Tüm projeleri getir
     static async getAllProjects(req, res) {
         try {
-            console.log('User ID:', req.user._id);
-            const projects = await Project.find({ createdBy: req.user._id })
+            console.log('User ID:', req.user.id);
+            const projects = await Project.find({ createdBy: req.user.id })
                 .populate('customers')
                 .sort({ createdAt: -1 });
             
@@ -28,13 +28,18 @@ class ProjectController {
     // Yeni proje oluştur
     static async createProject(req, res) {
         try {
+            console.log('Request body:', req.body);
+            console.log('User:', req.user);
+            
             const { name, description } = req.body;
 
             const project = new Project({
                 name,
                 description,
-                createdBy: req.user._id
+                createdBy: req.user.id
             });
+
+            console.log('New project:', project);
 
             await project.save();
 
@@ -43,6 +48,7 @@ class ProjectController {
                 data: project
             });
         } catch (error) {
+            console.error('Error in createProject:', error);
             res.status(400).json({
                 status: 'error',
                 message: error.message
