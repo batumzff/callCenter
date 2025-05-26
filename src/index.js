@@ -11,8 +11,15 @@ connectDB();
 
 const app = express();
 
+// CORS yapılandırması
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'], // Frontend URL'leri
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 

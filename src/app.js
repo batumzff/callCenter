@@ -1,6 +1,23 @@
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const app = express();
+
+// CORS ayarları
+const corsOptions = {
+  origin: ['http://localhost:3001', 'http://127.0.0.1:3001'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+// CORS middleware'ini uygula
+app.use(cors(corsOptions));
+
+// Preflight isteklerini ele al
+app.options('*', cors(corsOptions));
 
 // Middleware
 app.use(express.json());

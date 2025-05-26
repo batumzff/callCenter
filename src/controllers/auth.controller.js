@@ -51,16 +51,37 @@ class AuthController {
   // Kullanıcı girişi
   static async login(req, res) {
     try {
-      // Test için basit bir login
+      const { email, password } = req.body;
+
+      // Kullanıcıyı bul
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Şifreyi kontrol et
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          status: 'error',
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Token oluştur
       const token = jwt.sign(
-        { id: '1', role: 'admin' },
-        process.env.JWT_SECRET,
-        { expiresIn: '1d' }
+        { id: user._id, email: user.email, role: user.role },
+        config.jwtSecret,
+        { expiresIn: config.jwtExpiresIn }
       );
 
       res.json({
         status: 'success',
         data: {
+          user: user.toJSON(),
           token
         }
       });
@@ -98,4 +119,4 @@ class AuthController {
   }
 }
 
-module.exports = AuthController; 
+module.exports = AuthController;

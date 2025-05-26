@@ -1,19 +1,23 @@
 const Project = require('../models/Project');
-const Customer = require('../models/Customer');
+const Customer = require('../models/customer.model');
 
 class ProjectController {
     // Tüm projeleri getir
     static async getAllProjects(req, res) {
         try {
+            console.log('User ID:', req.user._id);
             const projects = await Project.find({ createdBy: req.user._id })
                 .populate('customers')
                 .sort({ createdAt: -1 });
+            
+            console.log('Found projects:', projects);
 
             res.json({
                 status: 'success',
                 data: projects
             });
         } catch (error) {
+            console.error('Error in getAllProjects:', error);
             res.status(500).json({
                 status: 'error',
                 message: error.message
