@@ -61,7 +61,7 @@ class ProjectController {
         try {
             const project = await Project.findOne({
                 _id: req.params.id,
-                createdBy: req.user._id
+                createdBy: req.user.id
             }).populate('customers');
 
             if (!project) {

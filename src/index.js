@@ -34,6 +34,8 @@ app.use('/api', routes);
 // Error handling middleware
 app.use(errorHandler);
 
-app.listen(config.port, () => {
-  console.log(`Server is running on port ${config.port} in ${config.nodeEnv} mode`);
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+  console.log(`Server is running on port ${port} in ${config.nodeEnv} mode`);
 }); 

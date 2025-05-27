@@ -4,12 +4,12 @@ class CustomerController {
   // Tüm müşterileri getir
   static async getAllCustomers(req, res) {
     try {
-      const customers = await Customer.find();
+      const customers = await Customer.find()
+        .sort({ createdAt: -1 });
+
       res.json({
         status: 'success',
-        data: {
-          customers
-        }
+        data: customers
       });
     } catch (error) {
       res.status(500).json({

@@ -11,6 +11,9 @@ router.post('/call', RetellController.createPhoneCall); // Yeni arama başlat
 router.get('/call/:callId', RetellController.getCallStatus); // Arama durumunu getir
 router.delete('/call/:callId', RetellController.endCall); // Aramayı sonlandır
 
+// Webhook route - authentication gerektirmez
+router.post('/webhook', RetellController.handleWebhook);
+
 // Agent management routes - Admin yetkisi gerekli
 router.post('/agent', adminAuth, RetellController.createAgent); // Yeni agent oluştur
 router.patch('/agent/:agentId', adminAuth, RetellController.updateAgent); // Agent güncelle

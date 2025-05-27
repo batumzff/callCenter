@@ -291,6 +291,50 @@ class RetellController {
       });
     }
   }
+
+  // Retell webhook handler
+  static async handleWebhook(req, res) {
+    try {
+      console.log('Webhook received:', req.body);
+      const { call_id, status, transcript, summary, sentiment, key_points, next_steps } = req.body;
+
+      // Müşteri kaydını bul ve güncelle
+      const customer = await Customer.findOne({ 'retellData.callId': call_id });
+      if (!customer) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Customer not found for this call'
+        });
+      }
+
+      // Arama verilerini güncelle
+      customer.retellData = {
+        ...customer.retellData,
+        callStatus: status,
+        transcript,
+        summary,
+        sentiment,
+        keyPoints: key_points,
+        nextSteps: next_steps,
+        callEndTime: status === 'completed' ? new Date() : customer.retellData.callEndTime
+      };
+
+      // Müşteri durumunu güncelle
+      customer.status = status === 'completed' ? 'completed' : 'processing';
+      await customer.save();
+
+      res.json({
+        status: 'success',
+        message: 'Webhook processed successfully'
+      });
+    } catch (error) {
+      console.error('Webhook error:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
 }
 
 module.exports = RetellController; 
