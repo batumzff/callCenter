@@ -11,7 +11,8 @@ const customerSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Phone number is required'],
     trim: true,
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number'],
+    unique: true
   },
   note: {
     type: String,
@@ -31,25 +32,40 @@ const customerSchema = new mongoose.Schema({
   retellData: {
     callId: String,
     callStatus: String,
-    callDuration: Number,
-    callStartTime: Date,
-    callEndTime: Date,
     transcript: String,
-    summary: String,
-    sentiment: String,
-    keyPoints: [String],
-    nextSteps: [String],
-    customFields: {
-      type: Map,
-      of: mongoose.Schema.Types.Mixed
-    }
+    recordingUrl: String,
+    callAnalysis: {
+      call_summary: String,
+      user_sentiment: String,
+      call_successful: Boolean,
+      in_voicemail: Boolean,
+      custom_analysis_data: {
+        note: String,
+        result: String
+      }
+    },
+    lastUpdated: Date
   },
   projectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
   }
 }, {
   timestamps: true
+});
+
+// Update the updatedAt field before saving
+customerSchema.pre('save', function(next) {
+  this.updatedAt = new Date();
+  next();
 });
 
 const Customer = mongoose.model('Customer', customerSchema);

@@ -3,16 +3,16 @@ const router = express.Router();
 const RetellController = require('../controllers/retell.controller');
 const { auth, adminAuth } = require('../middlewares/auth.middleware');
 
-// Tüm route'lar için authentication gerekli
+// Webhook route - authentication gerektirmez
+router.post('/webhook', RetellController.handleWebhook);
+
+// Diğer route'lar için authentication gerekli
 router.use(auth);
 
 // Retell routes
 router.post('/call', RetellController.createPhoneCall); // Yeni arama başlat
 router.get('/call/:callId', RetellController.getCallStatus); // Arama durumunu getir
 router.delete('/call/:callId', RetellController.endCall); // Aramayı sonlandır
-
-// Webhook route - authentication gerektirmez
-router.post('/webhook', RetellController.handleWebhook);
 
 // Agent management routes - Admin yetkisi gerekli
 router.post('/agent', adminAuth, RetellController.createAgent); // Yeni agent oluştur

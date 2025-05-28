@@ -5,6 +5,7 @@ const config = require('./config/config');
 const connectDB = require('./config/database');
 const routes = require('./routes');
 const errorHandler = require('./middlewares/errorHandler');
+const RetellController = require('./controllers/retell.controller');
 
 // MongoDB bağlantısı
 connectDB();
@@ -21,12 +22,15 @@ app.use(cors({
 
 // Middleware
 app.use(express.json());
-app.use(morgan('dev'));
+app.use(morgan(':method :url :status :response-time ms - :res[content-length] - :req[body]'));
 
 // Ana sayfa route'u
 app.get('/', (req, res) => {
   res.json({ message: 'Call Center API is running' });
 });
+
+// Webhook route'u - authentication gerektirmez
+app.post('/webhook', RetellController.handleWebhook);
 
 // Routes
 app.use('/api', routes);

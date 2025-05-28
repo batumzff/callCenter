@@ -28,7 +28,6 @@ class RetellController {
         customer.status = 'processing';
         customer.projectId = projectId;
       }
-      await customer.save();
 
       const agentId = 'agent_35e1c268e97c94df1302f54d3c';
       const fromNumber = process.env.RETELL_PHONE_NUMBER;
@@ -61,15 +60,29 @@ class RetellController {
         }
       );
 
+      console.log('Phone call response:', response.data);
+
       // Arama bilgilerini müşteri kaydına ekle
       customer.retellData = {
         callId: response.data.call_id,
         callStatus: 'started',
-        callStartTime: new Date()
+        startTimestamp: Date.now(),
+        fromNumber: fromNumber,
+        toNumber: toNumber,
+        lastUpdated: new Date()
       };
-      await customer.save();
 
-      console.log('Phone call response:', response.data);
+      try {
+        await customer.save();
+        console.log('Customer saved with initial call data:', {
+          id: customer._id,
+          callId: customer.retellData.callId,
+          status: customer.status
+        });
+      } catch (saveError) {
+        console.error('Error saving customer:', saveError);
+        throw saveError;
+      }
 
       res.status(201).json({
         status: 'success',
@@ -295,33 +308,92 @@ class RetellController {
   // Retell webhook handler
   static async handleWebhook(req, res) {
     try {
-      console.log('Webhook received:', req.body);
-      const { call_id, status, transcript, summary, sentiment, key_points, next_steps } = req.body;
+      console.log('=== WEBHOOK RECEIVED ===');
+      console.log('Headers:', req.headers);
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('=======================');
 
-      // Müşteri kaydını bul ve güncelle
-      const customer = await Customer.findOne({ 'retellData.callId': call_id });
+      // Webhook verisini kontrol et
+      if (!req.body || !req.body.call) {
+        console.error('Invalid webhook data:', req.body);
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid webhook data'
+        });
+      }
+
+      const { call } = req.body;
+
+      // Müşteri kaydını bul
+      const customer = await Customer.findOne({ 'retellData.callId': call.call_id });
       if (!customer) {
+        console.log('Customer not found for call_id:', call.call_id);
         return res.status(404).json({
           status: 'error',
           message: 'Customer not found for this call'
         });
       }
 
-      // Arama verilerini güncelle
-      customer.retellData = {
+      console.log('Found customer:', {
+        id: customer._id,
+        name: customer.name,
+        phoneNumber: customer.phoneNumber
+      });
+
+      // Call analysis verilerini çıkar
+      const callAnalysis = call.call_analysis ? {
+        call_summary: call.call_analysis.call_summary,
+        user_sentiment: call.call_analysis.user_sentiment,
+        call_successful: call.call_analysis.call_successful,
+        in_voicemail: call.call_analysis.in_voicemail,
+        custom_analysis_data: {
+          note: call.call_analysis.custom_analysis_data?.note,
+          result: call.call_analysis.custom_analysis_data?.result
+        }
+      } : null;
+
+      // Sadece ihtiyaç duyulan verileri kaydet
+      const retellData = {
         ...customer.retellData,
-        callStatus: status,
-        transcript,
-        summary,
-        sentiment,
-        keyPoints: key_points,
-        nextSteps: next_steps,
-        callEndTime: status === 'completed' ? new Date() : customer.retellData.callEndTime
+        callId: call.call_id,
+        callStatus: call.call_status,
+        transcript: call.transcript,
+        recordingUrl: call.recording_url,
+        callAnalysis: callAnalysis,
+        lastUpdated: new Date()
       };
 
-      // Müşteri durumunu güncelle
-      customer.status = status === 'completed' ? 'completed' : 'processing';
-      await customer.save();
+      console.log('Prepared retellData:', {
+        callId: retellData.callId,
+        callStatus: retellData.callStatus,
+        hasTranscript: !!retellData.transcript,
+        hasCallAnalysis: !!retellData.callAnalysis,
+        sentiment: retellData.callAnalysis?.user_sentiment,
+        callSuccessful: retellData.callAnalysis?.call_successful,
+        recordingUrl: retellData.recordingUrl
+      });
+
+      // Müşteri kaydını güncelle
+      customer.retellData = retellData;
+      customer.status = call.call_status === 'completed' ? 'completed' : 'processing';
+      
+      try {
+        await customer.save();
+        console.log('Customer saved successfully');
+      } catch (saveError) {
+        console.error('Error saving customer:', saveError);
+        throw saveError;
+      }
+
+      console.log('Updated customer data:', {
+        status: customer.status,
+        callStatus: customer.retellData.callStatus,
+        hasTranscript: !!customer.retellData.transcript,
+        sentiment: customer.retellData.callAnalysis?.user_sentiment,
+        callSuccessful: customer.retellData.callAnalysis?.call_successful,
+        recordingUrl: customer.retellData.recordingUrl
+      });
 
       res.json({
         status: 'success',
@@ -329,6 +401,7 @@ class RetellController {
       });
     } catch (error) {
       console.error('Webhook error:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({
         status: 'error',
         message: error.message

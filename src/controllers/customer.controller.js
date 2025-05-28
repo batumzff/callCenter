@@ -1,4 +1,5 @@
 const Customer = require('../models/customer.model');
+const mongoose = require('mongoose');
 
 class CustomerController {
   // Tüm müşterileri getir
@@ -194,6 +195,71 @@ class CustomerController {
         }
       });
     } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  // Retell verilerini içeren müşterileri getir
+  static async getCustomersWithRetellData(req, res) {
+    try {
+      const { projectId } = req.query;
+      console.log('Received projectId:', projectId);
+      
+      // Query oluştur
+      const query = {};
+      if (projectId) {
+        try {
+          query.projectId = new mongoose.Types.ObjectId(projectId);
+          console.log('Converted projectId to ObjectId:', query.projectId);
+        } catch (error) {
+          console.error('Error converting projectId to ObjectId:', error);
+          return res.status(400).json({
+            status: 'error',
+            message: 'Invalid projectId format'
+          });
+        }
+      }
+      
+      console.log('Executing query:', query);
+      const customers = await Customer.find(query)
+        .select('name phoneNumber status retellData createdAt')
+        .sort({ createdAt: -1 });
+      
+      console.log('Found customers:', customers.length);
+
+      res.json({
+        status: 'success',
+        data: customers
+      });
+    } catch (error) {
+      console.error('Error fetching customers with Retell data:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  // Test endpoint - Tüm verileri göster
+  static async testGetAllData(req, res) {
+    try {
+      const customers = await Customer.find()
+        .select('name phoneNumber status retellData projectId createdAt')
+        .sort({ createdAt: -1 });
+
+      console.log('Found customers:', customers.length);
+      console.log('Sample customer:', customers[0]);
+
+      res.json({
+        status: 'success',
+        count: customers.length,
+        data: customers
+      });
+    } catch (error) {
+      console.error('Error in test endpoint:', error);
       res.status(500).json({
         status: 'error',
         message: error.message
