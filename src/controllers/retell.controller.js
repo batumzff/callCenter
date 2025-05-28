@@ -335,10 +335,12 @@ class RetellController {
         });
       }
 
-      console.log('Found customer:', {
+      console.log('Found customer before update:', {
         id: customer._id,
         name: customer.name,
-        phoneNumber: customer.phoneNumber
+        phoneNumber: customer.phoneNumber,
+        currentStatus: customer.status,
+        currentCallStatus: customer.retellData?.callStatus
       });
 
       // Call analysis verilerini çıkar
@@ -364,6 +366,7 @@ class RetellController {
         lastUpdated: new Date()
       };
 
+      console.log('Webhook call status:', call.call_status);
       console.log('Prepared retellData:', {
         callId: retellData.callId,
         callStatus: retellData.callStatus,
@@ -376,23 +379,49 @@ class RetellController {
 
       // Müşteri kaydını güncelle
       customer.retellData = retellData;
-      customer.status = call.call_status === 'completed' ? 'completed' : 'processing';
+      
+      // Call status'a göre customer status'u güncelle
+      const oldStatus = customer.status;
+      switch (call.call_status) {
+        case 'started':
+          customer.status = 'processing';
+          break;
+        case 'ended':
+          customer.status = 'completed';
+          break;
+        case 'failed':
+          customer.status = 'failed';
+          break;
+        default:
+          customer.status = 'processing';
+      }
+      
+      console.log('Status update:', {
+        oldStatus,
+        newStatus: customer.status,
+        callStatus: call.call_status
+      });
       
       try {
         await customer.save();
-        console.log('Customer saved successfully');
+        console.log('Customer saved successfully:', {
+          id: customer._id,
+          status: customer.status,
+          callStatus: customer.retellData.callStatus,
+          savedAt: new Date().toISOString()
+        });
       } catch (saveError) {
         console.error('Error saving customer:', saveError);
         throw saveError;
       }
 
-      console.log('Updated customer data:', {
-        status: customer.status,
-        callStatus: customer.retellData.callStatus,
-        hasTranscript: !!customer.retellData.transcript,
-        sentiment: customer.retellData.callAnalysis?.user_sentiment,
-        callSuccessful: customer.retellData.callAnalysis?.call_successful,
-        recordingUrl: customer.retellData.recordingUrl
+      // Kaydedilen veriyi tekrar kontrol et
+      const savedCustomer = await Customer.findById(customer._id);
+      console.log('Verified saved customer:', {
+        id: savedCustomer._id,
+        status: savedCustomer.status,
+        callStatus: savedCustomer.retellData.callStatus,
+        verifiedAt: new Date().toISOString()
       });
 
       res.json({
