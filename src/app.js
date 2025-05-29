@@ -5,17 +5,16 @@ const cors = require('cors');
 const app = express();
 
 // CORS ayarları
-const corsOptions = {
-  origin: "*",
+app.use(cors({
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-// CORS middleware'ini uygula
-app.use(cors(corsOptions));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400 // 24 saat
+}));
 
 // Preflight isteklerini ele al
-app.options('*', cors(corsOptions));
+app.options('*', cors());
 
 // Middleware
 app.use(express.json());
