@@ -6,14 +6,9 @@ const app = express();
 
 // CORS ayarları
 const corsOptions = {
-  origin: [
-    'https://callcenterfe-g76t8xwkx-batuhans-projects-09c34fd8.vercel.app',
-    'http://localhost:3000',
-    'http://localhost:3001'
-  ],
+  origin: "*",
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // CORS middleware'ini uygula
