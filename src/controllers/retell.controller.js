@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Customer = require('../models/customer.model');
+const LLM = require('../models/llm.model');
 
 class RetellController {
   // Arama başlat
@@ -292,6 +293,8 @@ class RetellController {
         }
       );
 
+      console.log('Agents response:', response.data);
+
       res.json({
         status: 'success',
         data: response.data
@@ -434,6 +437,133 @@ class RetellController {
       res.status(500).json({
         status: 'error',
         message: error.message
+      });
+    }
+  }
+
+  // Get agent details
+  static async getAgent(req, res) {
+    try {
+      const { agentId } = req.params;
+
+      const response = await axios.get(
+        `https://api.retellai.com/get-agent/${agentId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('Agent details:', response.data);
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('Get agent error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // List all LLMs
+  static async listLLMs(req, res) {
+    try {
+      const response = await axios.get(
+        'https://api.retellai.com/list-retell-llms',
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('LLMs response:', response.data);
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('List LLMs error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // Get LLM details (prompt)
+  static async getLLM(req, res) {
+    try {
+      const { llmId } = req.params;
+
+      // Retell API'den LLM bilgilerini al
+      const response = await axios.get(
+        `https://api.retellai.com/get-retell-llm/${llmId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Sadece general_prompt'u kaydet
+      const prompt = response.data.general_prompt;
+      await LLM.findOneAndUpdate(
+        { llmId: llmId },
+        { llmId: llmId, generalPrompt: prompt },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+
+      res.json({
+        status: 'success',
+        prompt: prompt
+      });
+    } catch (error) {
+      console.error('Get LLM error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
+      });
+    }
+  }
+
+  // Update LLM
+  static async updateLLM(req, res) {
+    try {
+      const { llmId } = req.params;
+      const updateData = req.body;
+
+      const response = await axios.patch(
+        `https://api.retellai.com/update-retell-llm/${llmId}`,
+        updateData,
+        {
+          headers: {
+            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      console.log('LLM update response:', response.data);
+
+      res.json({
+        status: 'success',
+        data: response.data
+      });
+    } catch (error) {
+      console.error('Update LLM error:', error.response?.data || error.message);
+      res.status(error.response?.status || 500).json({
+        status: 'error',
+        message: error.response?.data?.message || error.message
       });
     }
   }
