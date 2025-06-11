@@ -541,45 +541,94 @@ class RetellController {
   static async updateLLM(req, res) {
     try {
       const { llmId } = req.params;
-      const updateData = req.body; // model dahil tüm alanlar
+      const updateData = req.body;
 
-      // Retell API'de güncelle (model alanı dahil)
-      const response = await axios.patch(
-        `https://api.retellai.com/update-retell-llm/${llmId}`,
-        updateData,
-        {
-          headers: {
-            'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
+      // 1. Eğer language ve agent_id varsa, agent'ın mevcut verisini çekip required alanlarla birlikte güncelle
+      if (updateData.language && updateData.agent_id) {
+        try {
+          // Agent'ın mevcut verisini çek
+          const agentRes = await axios.get(
+            `https://api.retellai.com/get-agent/${updateData.agent_id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          const agentData = agentRes.data;
+
+          // Güncellenecek body'yi oluştur (mevcut required alanlar + yeni language)
+          const agentUpdateBody = {
+            ...agentData,
+            language: updateData.language
+          };
+
+          console.log('PATCH /update-agent body:', agentUpdateBody);
+
+          await axios.patch(
+            `https://api.retellai.com/update-agent/${updateData.agent_id}`,
+            agentUpdateBody,
+            {
+              headers: {
+                'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+        } catch (agentError) {
+          return res.status(agentError.response?.status || 500).json({
+            status: 'error',
+            message: agentError.response?.data?.message || agentError.message
+          });
         }
-      );
+      }
 
-      const updated = response.data;
+      // 2. LLM ile ilgili alanları Retell LLM endpointine gönder
+      const llmUpdateData = { ...updateData };
+      delete llmUpdateData.language;
+      delete llmUpdateData.agent_id;
 
-      // Kendi veritabanında da güncelle (model dahil)
-      await LLM.findOneAndUpdate(
-        { llmId: updated.llm_id },
-        {
-          llmId: updated.llm_id,
-          version: updated.version,
-          isPublished: updated.is_published,
-          model: updated.model,
-          s2sModel: updated.s2s_model,
-          modelTemperature: updated.model_temperature,
-          modelHighPriority: updated.model_high_priority,
-          toolCallStrictMode: updated.tool_call_strict_mode,
-          generalPrompt: updated.general_prompt,
-          generalTools: updated.general_tools,
-          states: updated.states,
-          startingState: updated.starting_state,
-          beginMessage: updated.begin_message,
-          defaultDynamicVariables: updated.default_dynamic_variables,
-          knowledgeBaseIds: updated.knowledge_base_ids,
-          lastModificationTimestamp: updated.last_modification_timestamp
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
+      // Eğer LLM ile ilgili güncellenecek başka alan yoksa, LLM güncellemesi yapma
+      const hasLLMUpdate = Object.keys(llmUpdateData).length > 0;
+      let updated = null;
+      if (hasLLMUpdate) {
+        const response = await axios.patch(
+          `https://api.retellai.com/update-retell-llm/${llmId}`,
+          llmUpdateData,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.RETELL_API_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        updated = response.data;
+
+        // Kendi veritabanında da güncelle
+        await LLM.findOneAndUpdate(
+          { llmId: updated.llm_id },
+          {
+            llmId: updated.llm_id,
+            version: updated.version,
+            isPublished: updated.is_published,
+            model: updated.model,
+            s2sModel: updated.s2s_model,
+            modelTemperature: updated.model_temperature,
+            modelHighPriority: updated.model_high_priority,
+            toolCallStrictMode: updated.tool_call_strict_mode,
+            generalPrompt: updated.general_prompt,
+            generalTools: updated.general_tools,
+            states: updated.states,
+            startingState: updated.starting_state,
+            beginMessage: updated.begin_message,
+            defaultDynamicVariables: updated.default_dynamic_variables,
+            knowledgeBaseIds: updated.knowledge_base_ids,
+            lastModificationTimestamp: updated.last_modification_timestamp
+          },
+          { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
+      }
 
       res.json({
         status: 'success',
