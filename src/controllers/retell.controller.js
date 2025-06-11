@@ -514,6 +514,7 @@ class RetellController {
           }
         }
       );
+      console.log('LLM details:', response.data);
 
       // Sadece general_prompt'u kaydet
       const prompt = response.data.general_prompt;
@@ -540,8 +541,9 @@ class RetellController {
   static async updateLLM(req, res) {
     try {
       const { llmId } = req.params;
-      const updateData = req.body;
+      const updateData = req.body; // model dahil tüm alanlar
 
+      // Retell API'de güncelle (model alanı dahil)
       const response = await axios.patch(
         `https://api.retellai.com/update-retell-llm/${llmId}`,
         updateData,
@@ -553,11 +555,35 @@ class RetellController {
         }
       );
 
-      console.log('LLM update response:', response.data);
+      const updated = response.data;
+
+      // Kendi veritabanında da güncelle (model dahil)
+      await LLM.findOneAndUpdate(
+        { llmId: updated.llm_id },
+        {
+          llmId: updated.llm_id,
+          version: updated.version,
+          isPublished: updated.is_published,
+          model: updated.model,
+          s2sModel: updated.s2s_model,
+          modelTemperature: updated.model_temperature,
+          modelHighPriority: updated.model_high_priority,
+          toolCallStrictMode: updated.tool_call_strict_mode,
+          generalPrompt: updated.general_prompt,
+          generalTools: updated.general_tools,
+          states: updated.states,
+          startingState: updated.starting_state,
+          beginMessage: updated.begin_message,
+          defaultDynamicVariables: updated.default_dynamic_variables,
+          knowledgeBaseIds: updated.knowledge_base_ids,
+          lastModificationTimestamp: updated.last_modification_timestamp
+        },
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
 
       res.json({
         status: 'success',
-        data: response.data
+        data: updated
       });
     } catch (error) {
       console.error('Update LLM error:', error.response?.data || error.message);
