@@ -1,4 +1,5 @@
 const Customer = require('../models/customer.model');
+const CallDetail = require('../models/callDetail.model');
 const mongoose = require('mongoose');
 
 class CustomerController {
@@ -6,6 +7,7 @@ class CustomerController {
   static async getAllCustomers(req, res) {
     try {
       const customers = await Customer.find()
+        .populate('callDetails')
         .sort({ createdAt: -1 });
 
       res.json({
@@ -59,7 +61,9 @@ class CustomerController {
   // Müşteri detaylarını getir
   static async getCustomer(req, res) {
     try {
-      const customer = await Customer.findById(req.params.id);
+      const customer = await Customer.findById(req.params.id)
+        .populate('callDetails');
+      
       if (!customer) {
         return res.status(404).json({
           status: 'error',
@@ -104,7 +108,7 @@ class CustomerController {
         req.params.id,
         { name, phoneNumber, note, record, status },
         { new: true, runValidators: true }
-      );
+      ).populate('callDetails');
 
       if (!customer) {
         return res.status(404).json({
@@ -130,7 +134,7 @@ class CustomerController {
   // Müşteri sil
   static async deleteCustomer(req, res) {
     try {
-      const customer = await Customer.findByIdAndDelete(req.params.id);
+      const customer = await Customer.findById(req.params.id);
       
       if (!customer) {
         return res.status(404).json({
@@ -139,9 +143,15 @@ class CustomerController {
         });
       }
 
+      // Müşteriye ait tüm görüşme detaylarını sil
+      await CallDetail.deleteMany({ customerId: customer._id });
+
+      // Müşteriyi sil
+      await customer.deleteOne();
+
       res.json({
         status: 'success',
-        message: 'Customer deleted successfully'
+        message: 'Customer and associated call details deleted successfully'
       });
     } catch (error) {
       res.status(500).json({
@@ -225,7 +235,7 @@ class CustomerController {
       
       console.log('Executing query:', query);
       const customers = await Customer.find(query)
-        .select('name phoneNumber status retellData createdAt')
+        .populate('callDetails')
         .sort({ createdAt: -1 });
       
       console.log('Found customers:', customers.length);
@@ -247,7 +257,7 @@ class CustomerController {
   static async testGetAllData(req, res) {
     try {
       const customers = await Customer.find()
-        .select('name phoneNumber status retellData projectId createdAt')
+        .populate('callDetails')
         .sort({ createdAt: -1 });
 
       console.log('Found customers:', customers.length);

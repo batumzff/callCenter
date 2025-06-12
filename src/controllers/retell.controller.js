@@ -1,5 +1,6 @@
 const axios = require('axios');
 const Customer = require('../models/customer.model');
+const CallDetail = require('../models/callDetail.model');
 const LLM = require('../models/llm.model');
 
 class RetellController {
@@ -63,33 +64,36 @@ class RetellController {
 
       console.log('Phone call response:', response.data);
 
-      // Arama bilgilerini müşteri kaydına ekle
-      customer.retellData = {
+      // Yeni görüşme detayı oluştur
+      const callDetail = new CallDetail({
+        customerId: customer._id,
+        projectId,
         callId: response.data.call_id,
         callStatus: 'started',
         startTimestamp: Date.now(),
-        fromNumber: fromNumber,
-        toNumber: toNumber,
+        fromNumber,
+        toNumber,
         lastUpdated: new Date()
-      };
+      });
 
-      try {
-        await customer.save();
-        console.log('Customer saved with initial call data:', {
-          id: customer._id,
-          callId: customer.retellData.callId,
-          status: customer.status
-        });
-      } catch (saveError) {
-        console.error('Error saving customer:', saveError);
-        throw saveError;
-      }
+      await callDetail.save();
+
+      // Müşteriye görüşme detayını ekle
+      customer.callDetails.push(callDetail._id);
+      await customer.save();
+
+      console.log('Customer saved with initial call data:', {
+        id: customer._id,
+        callId: callDetail.callId,
+        status: customer.status
+      });
 
       res.status(201).json({
         status: 'success',
         data: {
           call: response.data,
-          customer
+          customer,
+          callDetail
         }
       });
     } catch (error) {
@@ -122,29 +126,37 @@ class RetellController {
         }
       );
 
-      // Müşteri kaydını güncelle
-      const customer = await Customer.findOne({ 'retellData.callId': callId });
-      if (customer) {
-        customer.retellData = {
-          ...customer.retellData,
-          callStatus: response.data.status,
-          callDuration: response.data.duration,
-          callEndTime: response.data.end_time ? new Date(response.data.end_time) : undefined,
-          transcript: response.data.transcript,
-          summary: response.data.summary,
-          sentiment: response.data.sentiment,
-          keyPoints: response.data.key_points,
-          nextSteps: response.data.next_steps
+      // Görüşme detayını bul ve güncelle
+      const callDetail = await CallDetail.findOne({ callId });
+      if (callDetail) {
+        callDetail.callStatus = response.data.status;
+        callDetail.transcript = response.data.transcript;
+        callDetail.callAnalysis = {
+          call_summary: response.data.summary,
+          user_sentiment: response.data.sentiment,
+          call_successful: response.data.call_successful,
+          in_voicemail: response.data.in_voicemail,
+          custom_analysis_data: {
+            note: response.data.note,
+            result: response.data.result
+          }
         };
-        customer.status = response.data.status === 'completed' ? 'completed' : 'processing';
-        await customer.save();
+        callDetail.lastUpdated = new Date();
+        await callDetail.save();
+
+        // Müşteri durumunu güncelle
+        const customer = await Customer.findById(callDetail.customerId);
+        if (customer) {
+          customer.status = response.data.status === 'completed' ? 'completed' : 'processing';
+          await customer.save();
+        }
       }
 
       res.json({
         status: 'success',
         data: {
           call: response.data,
-          customer
+          callDetail
         }
       });
     } catch (error) {
@@ -171,20 +183,26 @@ class RetellController {
         }
       );
 
-      // Müşteri kaydını güncelle
-      const customer = await Customer.findOne({ 'retellData.callId': callId });
-      if (customer) {
-        customer.retellData.callStatus = 'ended';
-        customer.retellData.callEndTime = new Date();
-        customer.status = 'completed';
-        await customer.save();
+      // Görüşme detayını güncelle
+      const callDetail = await CallDetail.findOne({ callId });
+      if (callDetail) {
+        callDetail.callStatus = 'ended';
+        callDetail.lastUpdated = new Date();
+        await callDetail.save();
+
+        // Müşteri durumunu güncelle
+        const customer = await Customer.findById(callDetail.customerId);
+        if (customer) {
+          customer.status = 'completed';
+          await customer.save();
+        }
       }
 
       res.json({
         status: 'success',
         data: {
           call: response.data,
-          customer
+          callDetail
         }
       });
     } catch (error) {
@@ -328,8 +346,18 @@ class RetellController {
 
       const { call } = req.body;
 
-      // Müşteri kaydını bul
-      const customer = await Customer.findOne({ 'retellData.callId': call.call_id });
+      // Görüşme detayını bul
+      const callDetail = await CallDetail.findOne({ callId: call.call_id });
+      if (!callDetail) {
+        console.log('Call detail not found for call_id:', call.call_id);
+        return res.status(404).json({
+          status: 'error',
+          message: 'Call detail not found for this call'
+        });
+      }
+
+      // Müşteriyi bul
+      const customer = await Customer.findById(callDetail.customerId);
       if (!customer) {
         console.log('Customer not found for call_id:', call.call_id);
         return res.status(404).json({
@@ -343,7 +371,7 @@ class RetellController {
         name: customer.name,
         phoneNumber: customer.phoneNumber,
         currentStatus: customer.status,
-        currentCallStatus: customer.retellData?.callStatus
+        currentCallStatus: callDetail.callStatus
       });
 
       // Call analysis verilerini çıkar
@@ -358,32 +386,15 @@ class RetellController {
         }
       } : null;
 
-      // Sadece ihtiyaç duyulan verileri kaydet
-      const retellData = {
-        ...customer.retellData,
-        callId: call.call_id,
-        callStatus: call.call_status,
-        transcript: call.transcript,
-        recordingUrl: call.recording_url,
-        callAnalysis: callAnalysis,
-        lastUpdated: new Date()
-      };
+      // Görüşme detayını güncelle
+      callDetail.callStatus = call.call_status;
+      callDetail.transcript = call.transcript;
+      callDetail.recordingUrl = call.recording_url;
+      callDetail.callAnalysis = callAnalysis;
+      callDetail.lastUpdated = new Date();
+      await callDetail.save();
 
-      console.log('Webhook call status:', call.call_status);
-      console.log('Prepared retellData:', {
-        callId: retellData.callId,
-        callStatus: retellData.callStatus,
-        hasTranscript: !!retellData.transcript,
-        hasCallAnalysis: !!retellData.callAnalysis,
-        sentiment: retellData.callAnalysis?.user_sentiment,
-        callSuccessful: retellData.callAnalysis?.call_successful,
-        recordingUrl: retellData.recordingUrl
-      });
-
-      // Müşteri kaydını güncelle
-      customer.retellData = retellData;
-      
-      // Call status'a göre customer status'u güncelle
+      // Müşteri durumunu güncelle
       const oldStatus = customer.status;
       switch (call.call_status) {
         case 'started':
@@ -410,22 +421,13 @@ class RetellController {
         console.log('Customer saved successfully:', {
           id: customer._id,
           status: customer.status,
-          callStatus: customer.retellData.callStatus,
+          callStatus: callDetail.callStatus,
           savedAt: new Date().toISOString()
         });
       } catch (saveError) {
         console.error('Error saving customer:', saveError);
         throw saveError;
       }
-
-      // Kaydedilen veriyi tekrar kontrol et
-      const savedCustomer = await Customer.findById(customer._id);
-      console.log('Verified saved customer:', {
-        id: savedCustomer._id,
-        status: savedCustomer.status,
-        callStatus: savedCustomer.retellData.callStatus,
-        verifiedAt: new Date().toISOString()
-      });
 
       res.json({
         status: 'success',
