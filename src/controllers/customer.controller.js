@@ -7,7 +7,6 @@ class CustomerController {
   static async getAllCustomers(req, res) {
     try {
       const customers = await Customer.find()
-        .populate('callDetails')
         .sort({ createdAt: -1 });
 
       res.json({
@@ -61,8 +60,7 @@ class CustomerController {
   // Müşteri detaylarını getir
   static async getCustomer(req, res) {
     try {
-      const customer = await Customer.findById(req.params.id)
-        .populate('callDetails');
+      const customer = await Customer.findById(req.params.id);
       
       if (!customer) {
         return res.status(404).json({
@@ -88,7 +86,7 @@ class CustomerController {
   // Müşteri bilgilerini güncelle
   static async updateCustomer(req, res) {
     try {
-      const { name, phoneNumber, note, record, status } = req.body;
+      const { name, phoneNumber, note, record, status, projectId } = req.body;
 
       // Telefon numarası kontrolü (eğer değiştirilmişse)
       if (phoneNumber) {
@@ -106,9 +104,9 @@ class CustomerController {
 
       const customer = await Customer.findByIdAndUpdate(
         req.params.id,
-        { name, phoneNumber, note, record, status },
+        { name, phoneNumber, note, record, status, projectId },
         { new: true, runValidators: true }
-      ).populate('callDetails');
+      );
 
       if (!customer) {
         return res.status(404).json({
@@ -134,7 +132,7 @@ class CustomerController {
   // Müşteri sil
   static async deleteCustomer(req, res) {
     try {
-      const customer = await Customer.findById(req.params.id);
+      const customer = await Customer.findByIdAndDelete(req.params.id);
       
       if (!customer) {
         return res.status(404).json({
@@ -143,15 +141,12 @@ class CustomerController {
         });
       }
 
-      // Müşteriye ait tüm görüşme detaylarını sil
-      await CallDetail.deleteMany({ customerId: customer._id });
-
-      // Müşteriyi sil
-      await customer.deleteOne();
+      // Müşteriye ait call detaylarını da sil
+      await CallDetail.deleteMany({ customerId: req.params.id });
 
       res.json({
         status: 'success',
-        message: 'Customer and associated call details deleted successfully'
+        message: 'Customer and related call details deleted successfully'
       });
     } catch (error) {
       res.status(500).json({
