@@ -207,8 +207,8 @@ class CustomerController {
     }
   }
 
-  // Retell verilerini içeren müşterileri getir
-  static async getCustomersWithRetellData(req, res) {
+  // Müşterileri call detayları ile birlikte getir
+  static async getCustomersWithCallDetails(req, res) {
     try {
       const { projectId } = req.query;
       console.log('Received projectId:', projectId);
@@ -230,17 +230,31 @@ class CustomerController {
       
       console.log('Executing query:', query);
       const customers = await Customer.find(query)
-        .populate('callDetails')
+        .select('name phoneNumber status projectId createdAt')
         .sort({ createdAt: -1 });
       
       console.log('Found customers:', customers.length);
 
+      // Her müşteri için son call detayını getir
+      const customersWithCallDetails = await Promise.all(
+        customers.map(async (customer) => {
+          const lastCallDetail = await CallDetail.findOne({ customerId: customer._id })
+            .sort({ createdAt: -1 })
+            .select('callId callStatus callAnalysis createdAt');
+
+          return {
+            ...customer.toObject(),
+            lastCallDetail
+          };
+        })
+      );
+
       res.json({
         status: 'success',
-        data: customers
+        data: customersWithCallDetails
       });
     } catch (error) {
-      console.error('Error fetching customers with Retell data:', error);
+      console.error('Error fetching customers with call details:', error);
       res.status(500).json({
         status: 'error',
         message: error.message
@@ -252,7 +266,7 @@ class CustomerController {
   static async testGetAllData(req, res) {
     try {
       const customers = await Customer.find()
-        .populate('callDetails')
+        .select('name phoneNumber status projectId createdAt')
         .sort({ createdAt: -1 });
 
       console.log('Found customers:', customers.length);
@@ -265,6 +279,38 @@ class CustomerController {
       });
     } catch (error) {
       console.error('Error in test endpoint:', error);
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  // Müşteri detaylarını call detayları ile birlikte getir
+  static async getCustomerWithCallDetails(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const customer = await Customer.findById(id);
+      if (!customer) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Customer not found'
+        });
+      }
+
+      // Müşteriye ait tüm call detaylarını getir
+      const callDetails = await CallDetail.find({ customerId: id })
+        .sort({ createdAt: -1 });
+
+      res.json({
+        status: 'success',
+        data: {
+          customer,
+          callDetails
+        }
+      });
+    } catch (error) {
       res.status(500).json({
         status: 'error',
         message: error.message

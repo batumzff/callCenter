@@ -10,8 +10,9 @@ router.get('/test-data', CustomerController.testGetAllData);
 router.use(auth);
 
 // Özel route'lar önce tanımlanmalı
-router.get('/retell-data', CustomerController.getCustomersWithRetellData);
+router.get('/call-details', CustomerController.getCustomersWithCallDetails);
 router.get('/pending', CustomerController.getPendingCustomers);
+router.get('/:id/with-call-details', CustomerController.getCustomerWithCallDetails);
 
 // Genel route'lar sonra tanımlanmalı
 router.get('/', CustomerController.getAllCustomers);

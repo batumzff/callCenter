@@ -30,12 +30,14 @@ const customerRoutes = require('./routes/customer.routes');
 const retellRoutes = require('./routes/retell.routes');
 const authRoutes = require('./routes/auth.routes');
 const projectRoutes = require('./routes/project.routes');
+const callDetailRoutes = require('./routes/callDetail.routes');
 
 // Route middleware
 app.use('/api/customers', customerRoutes);
 app.use('/api/retell', retellRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/call-details', callDetailRoutes);
 
 // MongoDB bağlantısı
 mongoose.connect(process.env.MONGODB_URI)
