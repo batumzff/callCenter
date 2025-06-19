@@ -29,10 +29,10 @@ const customerSchema = new mongoose.Schema({
     enum: ['pending', 'processing', 'completed', 'failed'],
     default: 'pending'
   },
-  projectId: {
+  projectIds: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
-  },
+  }],
   callDetails: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CallDetail'

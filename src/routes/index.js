@@ -4,6 +4,7 @@ const authRoutes = require('./auth.routes');
 const customerRoutes = require('./customer.routes');
 const retellRoutes = require('./retell.routes');
 const projectRoutes = require('./project.routes');
+const callDetailRoutes = require('./callDetail.routes');
 
 // Ana route
 router.get('/', (req, res) => {
@@ -21,5 +22,8 @@ router.use('/retell', retellRoutes);
 
 // Project routes
 router.use('/projects', projectRoutes);
+
+// CallDetail routes
+router.use('/call-details', callDetailRoutes);
 
 module.exports = router; 

@@ -14,6 +14,10 @@ router.get('/call-details', CustomerController.getCustomersWithCallDetails);
 router.get('/pending', CustomerController.getPendingCustomers);
 router.get('/:id/with-call-details', CustomerController.getCustomerWithCallDetails);
 
+// Proje yönetimi route'ları
+router.post('/:customerId/project/:projectId', CustomerController.addCustomerToProject);
+router.delete('/:customerId/project/:projectId', CustomerController.removeCustomerFromProject);
+
 // Genel route'lar sonra tanımlanmalı
 router.get('/', CustomerController.getAllCustomers);
 router.post('/', CustomerController.createCustomer);

@@ -24,7 +24,7 @@ class CustomerController {
   // Yeni müşteri oluştur
   static async createCustomer(req, res) {
     try {
-      const { name, phoneNumber } = req.body;
+      const { name, phoneNumber, projectIds } = req.body;
 
       // Telefon numarası kontrolü
       const existingCustomer = await Customer.findOne({ phoneNumber });
@@ -38,6 +38,7 @@ class CustomerController {
       const customer = new Customer({
         name,
         phoneNumber,
+        projectIds: projectIds || [],
         status: 'pending' // Yeni müşteri oluşturulduğunda status pending olarak başlar
       });
 
@@ -86,7 +87,7 @@ class CustomerController {
   // Müşteri bilgilerini güncelle
   static async updateCustomer(req, res) {
     try {
-      const { name, phoneNumber, note, record, status, projectId } = req.body;
+      const { name, phoneNumber, note, record, status, projectIds } = req.body;
 
       // Telefon numarası kontrolü (eğer değiştirilmişse)
       if (phoneNumber) {
@@ -104,7 +105,7 @@ class CustomerController {
 
       const customer = await Customer.findByIdAndUpdate(
         req.params.id,
-        { name, phoneNumber, note, record, status, projectId },
+        { name, phoneNumber, note, record, status, projectIds },
         { new: true, runValidators: true }
       );
 
@@ -132,7 +133,20 @@ class CustomerController {
   // Müşteri sil
   static async deleteCustomer(req, res) {
     try {
-      const customer = await Customer.findByIdAndDelete(req.params.id);
+      const { id } = req.params;
+      
+      // ObjectId'ye çevir
+      let convertedId;
+      try {
+        convertedId = new mongoose.Types.ObjectId(id);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customer ID format'
+        });
+      }
+      
+      const customer = await Customer.findByIdAndDelete(convertedId);
       
       if (!customer) {
         return res.status(404).json({
@@ -142,7 +156,7 @@ class CustomerController {
       }
 
       // Müşteriye ait call detaylarını da sil
-      await CallDetail.deleteMany({ customerId: req.params.id });
+      await CallDetail.deleteMany({ customerId: convertedId });
 
       res.json({
         status: 'success',
@@ -217,8 +231,9 @@ class CustomerController {
       const query = {};
       if (projectId) {
         try {
-          query.projectId = new mongoose.Types.ObjectId(projectId);
-          console.log('Converted projectId to ObjectId:', query.projectId);
+          const convertedProjectId = new mongoose.Types.ObjectId(projectId);
+          query.projectIds = convertedProjectId;
+          console.log('Converted projectId to ObjectId:', convertedProjectId);
         } catch (error) {
           console.error('Error converting projectId to ObjectId:', error);
           return res.status(400).json({
@@ -230,7 +245,7 @@ class CustomerController {
       
       console.log('Executing query:', query);
       const customers = await Customer.find(query)
-        .select('name phoneNumber status projectId createdAt')
+        .select('name phoneNumber status projectIds createdAt')
         .sort({ createdAt: -1 });
       
       console.log('Found customers:', customers.length);
@@ -266,7 +281,7 @@ class CustomerController {
   static async testGetAllData(req, res) {
     try {
       const customers = await Customer.find()
-        .select('name phoneNumber status projectId createdAt')
+        .select('name phoneNumber status projectIds createdAt')
         .sort({ createdAt: -1 });
 
       console.log('Found customers:', customers.length);
@@ -291,7 +306,18 @@ class CustomerController {
     try {
       const { id } = req.params;
       
-      const customer = await Customer.findById(id);
+      // ObjectId'ye çevir
+      let convertedId;
+      try {
+        convertedId = new mongoose.Types.ObjectId(id);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customer ID format'
+        });
+      }
+      
+      const customer = await Customer.findById(convertedId);
       if (!customer) {
         return res.status(404).json({
           status: 'error',
@@ -300,7 +326,7 @@ class CustomerController {
       }
 
       // Müşteriye ait tüm call detaylarını getir
-      const callDetails = await CallDetail.find({ customerId: id })
+      const callDetails = await CallDetail.find({ customerId: convertedId })
         .sort({ createdAt: -1 });
 
       res.json({
@@ -310,6 +336,121 @@ class CustomerController {
           callDetails
         }
       });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  // Müşteriyi projeye ekle
+  static async addCustomerToProject(req, res) {
+    try {
+      const { customerId, projectId } = req.params;
+      
+      // ObjectId'lere çevir
+      let convertedCustomerId, convertedProjectId;
+      try {
+        convertedCustomerId = new mongoose.Types.ObjectId(customerId);
+        convertedProjectId = new mongoose.Types.ObjectId(projectId);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customerId or projectId format'
+        });
+      }
+
+      // Müşteriyi bul
+      const customer = await Customer.findById(convertedCustomerId);
+      if (!customer) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Customer not found'
+        });
+      }
+
+      // projectIds dizisini oluştur (eğer yoksa)
+      if (!customer.projectIds) {
+        customer.projectIds = [];
+      }
+
+      // projectId'yi projectIds'e ekle (eğer yoksa)
+      if (!customer.projectIds.some(id => id.equals(convertedProjectId))) {
+        customer.projectIds.push(convertedProjectId);
+        await customer.save();
+        
+        res.json({
+          status: 'success',
+          message: 'Customer added to project successfully',
+          data: {
+            customer
+          }
+        });
+      } else {
+        res.json({
+          status: 'success',
+          message: 'Customer is already in this project',
+          data: {
+            customer
+          }
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: error.message
+      });
+    }
+  }
+
+  // Müşteriyi projeden çıkar
+  static async removeCustomerFromProject(req, res) {
+    try {
+      const { customerId, projectId } = req.params;
+      
+      // ObjectId'lere çevir
+      let convertedCustomerId, convertedProjectId;
+      try {
+        convertedCustomerId = new mongoose.Types.ObjectId(customerId);
+        convertedProjectId = new mongoose.Types.ObjectId(projectId);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customerId or projectId format'
+        });
+      }
+
+      // Müşteriyi bul
+      const customer = await Customer.findById(convertedCustomerId);
+      if (!customer) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Customer not found'
+        });
+      }
+
+      // projectIds dizisinden projectId'yi çıkar
+      if (customer.projectIds && customer.projectIds.some(id => id.equals(convertedProjectId))) {
+        customer.projectIds = customer.projectIds.filter(id => !id.equals(convertedProjectId));
+        await customer.save();
+        
+        res.json({
+          status: 'success',
+          message: 'Customer removed from project successfully',
+          data: {
+            customer
+          }
+        });
+      } else {
+        res.json({
+          status: 'success',
+          message: 'Customer is not in this project',
+          data: {
+            customer
+          }
+        });
+      }
     } catch (error) {
       res.status(500).json({
         status: 'error',

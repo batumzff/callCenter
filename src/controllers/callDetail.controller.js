@@ -153,7 +153,18 @@ class CallDetailController {
     try {
       const { customerId } = req.params;
       
-      const callDetails = await CallDetail.find({ customerId })
+      // ObjectId'ye çevir
+      let convertedCustomerId;
+      try {
+        convertedCustomerId = new mongoose.Types.ObjectId(customerId);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customerId format'
+        });
+      }
+      
+      const callDetails = await CallDetail.find({ customerId: convertedCustomerId })
         .populate('projectId', 'name')
         .sort({ createdAt: -1 });
 
@@ -174,7 +185,18 @@ class CallDetailController {
     try {
       const { projectId } = req.params;
       
-      const callDetails = await CallDetail.find({ projectId })
+      // ObjectId'ye çevir
+      let convertedProjectId;
+      try {
+        convertedProjectId = new mongoose.Types.ObjectId(projectId);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid projectId format'
+        });
+      }
+      
+      const callDetails = await CallDetail.find({ projectId: convertedProjectId })
         .populate('customerId', 'name phoneNumber')
         .sort({ createdAt: -1 });
 
@@ -259,7 +281,22 @@ class CallDetailController {
     try {
       const { customerId, projectId } = req.params;
       
-      const callDetails = await CallDetail.find({ customerId, projectId })
+      // ObjectId'lere çevir
+      let convertedCustomerId, convertedProjectId;
+      try {
+        convertedCustomerId = new mongoose.Types.ObjectId(customerId);
+        convertedProjectId = new mongoose.Types.ObjectId(projectId);
+      } catch (error) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid customerId or projectId format'
+        });
+      }
+      
+      const callDetails = await CallDetail.find({ 
+        customerId: convertedCustomerId, 
+        projectId: convertedProjectId 
+      })
         .populate('projectId', 'name')
         .sort({ createdAt: -1 });
 
