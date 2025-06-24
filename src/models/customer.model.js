@@ -33,6 +33,10 @@ const customerSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Project'
   }],
+  searchGroupIds: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'SearchGroup'
+  }],
   callDetails: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CallDetail'

@@ -24,6 +24,10 @@ const projectSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Customer'
     }],
+    searchGroupIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'SearchGroup'
+    }],
     createdAt: {
         type: Date,
         default: Date.now
